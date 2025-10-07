@@ -1,46 +1,21 @@
-import React, { Suspense, useMemo } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, Html, OrbitControls, Float } from "@react-three/drei";
 
 const deg2rad = (d) => (d * Math.PI) / 180;
-
-// Create a wrapper component that handles GLTF loading errors
-function TelloModelWrapper({ roll = 0, pitch = 0, yaw = 0, altitude = 0 }) {
-  const [hasError, setHasError] = React.useState(false);
-
-  React.useEffect(() => {
-    // Check if the model file exists before trying to load it
-    fetch("/models/tello.glb", { method: "HEAD" })
-      .then(response => {
-        if (!response.ok) {
-          setHasError(true);
-        }
-      })
-      .catch(() => {
-        setHasError(true);
-      });
-  }, []);
-
-  if (hasError) {
-    return null; // Will use fallback
-  }
-
-  return <TelloModelWithGLTF roll={roll} pitch={pitch} yaw={yaw} altitude={altitude} />;
-}
+const MODEL_PATH = "./tello.glb";
 
 function TelloModelWithGLTF({ roll = 0, pitch = 0, yaw = 0, altitude = 0 }) {
-  const gltf = useGLTF("/models/tello.glb", true);
+  const gltf = useGLTF(MODEL_PATH, true);
   const groupRef = React.useRef();
-  const rot = useMemo(() => ({
-    x: deg2rad(pitch), y: deg2rad(yaw), z: deg2rad(roll)
-  }), [roll, pitch, yaw]);
 
   useFrame(() => {
     if (!groupRef.current) return;
     const g = groupRef.current;
-    g.rotation.x += (rot.x - g.rotation.x) * 0.2;
-    g.rotation.y += (rot.y - g.rotation.y) * 0.2;
-    g.rotation.z += (rot.z - g.rotation.z) * 0.2;
+    const rx = deg2rad(pitch), ry = deg2rad(yaw), rz = deg2rad(roll);
+    g.rotation.x += (rx - g.rotation.x) * 0.2;
+    g.rotation.y += (ry - g.rotation.y) * 0.2;
+    g.rotation.z += (rz - g.rotation.z) * 0.2;
     const yTarget = altitude * 0.05;
     g.position.y += (yTarget - g.position.y) * 0.2;
   });
@@ -83,16 +58,12 @@ function TelloFallback({ roll = 0, pitch = 0, yaw = 0, altitude = 0 }) {
 }
 
 function ModelOrFallback(props) {
-  const [useFallback, setUseFallback] = React.useState(true);
-  React.useEffect(() => {
-    let cancelled = false;
-    fetch("/models/tello.glb", { method: "HEAD" })
-      .then((r) => { if (!cancelled) setUseFallback(!r.ok); })
-      .catch(() => !cancelled && setUseFallback(true));
-    return () => { cancelled = true; };
-  }, []);
-  if (useFallback) return <TelloFallback {...props} />;
-  return <TelloModelWithGLTF {...props} />;
+  // Try to use GLB directly, fallback if it fails
+  try {
+    return <TelloModelWithGLTF {...props} />;
+  } catch (error) {
+    return <TelloFallback {...props} />;
+  }
 }
 
 export default function ThreeDroneScene({ roll = 0, pitch = 0, yaw = 0, altitude = 0 }) {
@@ -101,7 +72,7 @@ export default function ThreeDroneScene({ roll = 0, pitch = 0, yaw = 0, altitude
       <Suspense fallback={
         <Html center>
           <div style={{ padding: 12, background: "#111", color: "#fff", borderRadius: 8 }}>
-            Loading model…
+            Loading model...
           </div>
         </Html>
       }>
