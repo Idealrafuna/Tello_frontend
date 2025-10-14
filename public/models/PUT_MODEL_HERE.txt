@@ -1,0 +1,5 @@
+Place your tello.glb model file here.
+
+The 3D scene will automatically load the model if it exists at /models/tello.glb.
+If no model is found, it will display a simple orange box as a placeholder.
+
